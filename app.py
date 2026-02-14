@@ -21,7 +21,8 @@ data_loaded = False
 try:
     # 1. Setup Path
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    csv_path = os.path.join(BASE_DIR, "data", "sample.csv")
+    # REMOVE "data" from the path
+    csv_path = os.path.join(BASE_DIR, "sample.csv")
 
     print(f"Attempting to load data from: {csv_path}")
 
@@ -122,4 +123,5 @@ def predict():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
 
