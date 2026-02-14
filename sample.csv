@@ -1,0 +1,12 @@
+Student_ID,Gender,Study_Hours_per_Week,Attendance_Rate,Past_Exam_Scores,Parental_Education_Level,Internet_Access_at_Home,Extracurricular_Activities,Final_Exam_Score,Pass_Fail
+101,Male,12,95,85,College,Yes,Yes,88,Pass
+102,Female,8,80,70,High School,No,No,65,Pass
+103,Male,5,60,50,High School,Yes,Yes,45,Fail
+104,Female,15,98,90,Graduate,Yes,No,92,Pass
+105,Male,10,85,75,College,No,Yes,78,Pass
+106,Female,6,70,55,High School,Yes,No,50,Fail
+107,Male,14,92,88,Graduate,Yes,Yes,90,Pass
+108,Female,7,75,60,College,No,Yes,55,Fail
+109,Male,9,80,70,High School,Yes,No,68,Pass
+110,Female,11,88,80,Graduate,Yes,Yes,85,Pass
+
