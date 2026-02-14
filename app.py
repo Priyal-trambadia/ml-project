@@ -5,45 +5,65 @@ from flask_cors import CORS
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 
-# Initialize Flask
+# -----------------------------------------
+# INITIALIZE APP
+# -----------------------------------------
 app = Flask(__name__)
 CORS(app)
 
-# Global variables to hold our models (so we can access them in routes)
+# Global variables
 score_model = None
 passfail_model = None
 encoders = {}
 data_loaded = False
 
 # -----------------------------------------
-# LOAD DATA & TRAIN MODEL (Safely)
+# SMART DATA LOADER
 # -----------------------------------------
-try:
-    # 1. Setup Path
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    # REMOVE "data" from the path
-    csv_path = os.path.join(BASE_DIR, "sample.csv")
+print("🔍 STARTING APP: Looking for data file...")
 
-    print(f"Attempting to load data from: {csv_path}")
+# Get the current folder where app.py is located
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-    if os.path.exists(csv_path):
+# List of all possible places the file might be
+possible_paths = [
+    os.path.join(BASE_DIR, "data", "sample.csv"),    # 1. Standard: inside 'data' folder
+    os.path.join(BASE_DIR, "sample.csv"),            # 2. Backup: right next to app.py
+    "data/sample.csv",                               # 3. Relative path
+    "sample.csv"                                     # 4. Simple filename
+]
+
+csv_path = None
+
+# Loop through paths to find the file
+for path in possible_paths:
+    if os.path.exists(path):
+        print(f"✅ FOUND FILE AT: {path}")
+        csv_path = path
+        break
+
+# -----------------------------------------
+# LOAD DATA & TRAIN MODELS
+# -----------------------------------------
+if csv_path:
+    try:
         df = pd.read_csv(csv_path)
-        
-        # 2. Initialize Encoders
+        print(f"✅ SUCCESS: Loaded {len(df)} rows.")
+
+        # --- 1. Label Encoding ---
         le_gender = LabelEncoder()
         le_parent_edu = LabelEncoder()
         le_internet = LabelEncoder()
         le_extra = LabelEncoder()
         le_passfail = LabelEncoder()
 
-        # 3. Fit Encoders
         df['Gender'] = le_gender.fit_transform(df['Gender'])
         df['Parental_Education_Level'] = le_parent_edu.fit_transform(df['Parental_Education_Level'])
         df['Internet_Access_at_Home'] = le_internet.fit_transform(df['Internet_Access_at_Home'])
         df['Extracurricular_Activities'] = le_extra.fit_transform(df['Extracurricular_Activities'])
         df['Pass_Fail'] = le_passfail.fit_transform(df['Pass_Fail'])
 
-        # Save encoders to dictionary for easy access later
+        # Save encoders so we can use them in the /predict route
         encoders = {
             'Gender': le_gender,
             'Parental_Education_Level': le_parent_edu,
@@ -52,13 +72,14 @@ try:
             'Pass_Fail': le_passfail
         }
 
-        # 4. Features & Targets
+        # --- 2. Features & Targets ---
         X = df[['Gender','Study_Hours_per_Week','Attendance_Rate','Past_Exam_Scores',
                 'Parental_Education_Level','Internet_Access_at_Home','Extracurricular_Activities']]
+        
         y_score = df['Final_Exam_Score']
         y_passfail = df['Pass_Fail']
 
-        # 5. Train Models
+        # --- 3. Train Models ---
         score_model = RandomForestRegressor(n_estimators=50, random_state=42)
         score_model.fit(X, y_score)
 
@@ -67,37 +88,43 @@ try:
 
         data_loaded = True
         print("✅ Models trained successfully!")
-    else:
-        print(f"❌ ERROR: File not found at {csv_path}")
 
-except Exception as e:
-    print(f"❌ CRITICAL ERROR during training: {e}")
+    except Exception as e:
+        print(f"❌ ERROR processing data: {e}")
+else:
+    print("❌ FATAL ERROR: File 'sample.csv' NOT found in any expected location.")
+    # Print directory contents to logs for debugging
+    print("📂 Current Directory Contents:", os.listdir(BASE_DIR))
+    if os.path.exists(os.path.join(BASE_DIR, "data")):
+        print("📂 Contents of 'data' folder:", os.listdir(os.path.join(BASE_DIR, "data")))
 
 # -----------------------------------------
 # ROUTES
 # -----------------------------------------
+
 @app.route("/")
 def home():
     if data_loaded:
-        return "✅ Flask app is running! Models are trained and ready."
+        return "✅ Flask App is Running! Models are Ready."
     else:
-        return "⚠️ App is running, but DATA FILE WAS NOT FOUND. Check that 'data/sample.csv' exists in GitHub."
+        # If this appears, check your Render Logs for the '📂 Current Directory Contents' line
+        return "⚠️ App is running, but DATA FAILED TO LOAD. Check Render Logs for details."
 
 @app.route("/predict", methods=["POST"])
 def predict():
     if not data_loaded:
-        return jsonify({"error": "Model not loaded. Check server logs."}), 500
+        return jsonify({"error": "Models are not loaded because data file was missing."}), 500
 
     try:
         data = request.get_json()
 
-        # Helper function to safely encode inputs
+        # Helper to encode inputs safely
         def safe_encode(key, value):
             if value not in encoders[key].classes_:
-                raise ValueError(f"Unknown value '{value}' for {key}")
+                raise ValueError(f"Invalid value '{value}' for {key}")
             return encoders[key].transform([value])[0]
 
-        # Prepare Input Features
+        # Prepare features
         features = [[
             safe_encode('Gender', data['Gender']),
             float(data['Study_Hours_per_Week']),
@@ -108,7 +135,7 @@ def predict():
             safe_encode('Extracurricular_Activities', data['Extracurricular_Activities'])
         ]]
 
-        # Predict
+        # Make predictions
         final_score = score_model.predict(features)[0]
         passfail_idx = passfail_model.predict(features)[0]
         passfail_label = encoders['Pass_Fail'].inverse_transform([passfail_idx])[0]
@@ -117,11 +144,12 @@ def predict():
             "Final_Exam_Score": round(final_score, 2),
             "Pass_Fail": passfail_label
         })
-    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
+# -----------------------------------------
+# RUN LOCALLY
+# -----------------------------------------
 if __name__ == "__main__":
-    app.run(debug=True)
-
-
+    app.run(debug=True, host="0.0.0.0", port=5000)
