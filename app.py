@@ -633,6 +633,11 @@ def predict():
         return jsonify({"error": str(e)}), 400
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # This allows the app to use the port Render assigns, or default to 5000 locally
+    port = int(os.environ.get("PORT", 5000))
+
+    # '0.0.0.0' is crucial! It tells the app to be public, not private.
+    app.run(host='0.0.0.0', port=port)
+
 
 
