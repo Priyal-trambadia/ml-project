@@ -551,7 +551,7 @@ html_template = """
             };
 
             // Call ML API
-            fetch("http://127.0.0.1:5000/predict", {
+            fetch("https://edu-predictor-ml-project.onrender.com/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
@@ -638,6 +638,7 @@ if __name__ == "__main__":
 
     # '0.0.0.0' is crucial! It tells the app to be public, not private.
     app.run(host='0.0.0.0', port=port)
+
 
 
 
